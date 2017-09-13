@@ -57,7 +57,7 @@ before_install:
   - if [[ $TRAVIS_PYTHON_VERSION == "2.6" ]]; then pip install unittest2; fi
   - pip install pip setuptools --upgrade
   # if building with speedups install cython
-  - if [ "$SPEEDUPS" == "1" ]; then pip install --install-option="--no-cython-compile" https://github.com/cython/cython/archive/557fd54ae9308a087993ebc66be0c58bf7f33040.zip; fi
+  - if [ "$SPEEDUPS" == "1" ]; then pip install --install-option="--no-cython-compile" https://github.com/cython/cython/archive/6b4066bea849daea296fd78e24954bbdf6c60087.zip; fi
   # if testing without numpy explicitly remove it
   - if [ "$NUMPY" == "0" ]; then pip uninstall --yes numpy; fi
   # convert SPEEDUPS to --with-speedups/--without-speedups
