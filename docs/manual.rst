@@ -157,7 +157,7 @@ themselves as instance factories. A few of their intrinsic properties will be
 discussed in this sections, others in the following sections on operations and
 serializations.
 
-Instances of `Point`, `LineString`, and `LinearRing` have as their most
+Instances of ``Point``, ``LineString``, and ``LinearRing`` have as their most
 important attribute a finite sequence of coordinates that determines their
 interior, boundary, and exterior point sets. A line string can be determined by
 as few as 2 points, but contains an infinite number of points. Coordinate
@@ -169,8 +169,20 @@ In all constructors, numeric values are converted to type ``float``. In other
 words, ``Point(0, 0)`` and ``Point(0.0, 0.0)`` produce geometrically equivalent
 instances. Shapely does not check the topological simplicity or validity of
 instances when they are constructed as the cost is unwarranted in most cases.
-Validating factories are trivially implemented, using the :attr:`is_valid`
-predicate, by users that require them.
+Validating factories are easily implemented using the :attr:``is_valid``
+predicate by users that require them.
+
+.. note::
+
+   Shapely is a planar geometry library and `z`, the height
+   above or below the plane, is ignored in geometric analysis. There is
+   a potential pitfall for users here: coordinate tuples that differ only in
+   `z` are not distinguished from each other and their application can result
+   in suprisingly invalid geometry objects. For example, ``LineString([(0, 0,
+   0), (0, 0, 1)])`` does not return a vertical line of unit length, but an invalid line
+   in the plane with zero length. Similarly, ``Polygon([(0, 0, 0), (0, 0, 1),
+   (1, 1, 1)])`` is not bounded by a closed ring and is invalid.
+
 
 General Attributes and Methods
 ------------------------------
@@ -1356,6 +1368,13 @@ Almost every binary predicate method has a counterpart that returns a new
 geometric object. In addition, the set-theoretic `boundary` of an object is
 available as a read-only attribute.
 
+.. note::
+
+  These methods will `always` return a geometric object. An intersection of
+  disjoint geometries for example will return an empty `GeometryCollection`,
+  not `None` or `False`. To test for a non-empty result, use the geometry's
+  :ref:`is_empty` property.
+
 .. attribute:: object.boundary
 
   Returns a lower dimensional object representing the object's set-theoretic
@@ -2234,6 +2253,31 @@ The :func:`~shapely.ops.split` function in `shapely.ops` splits a geometry by an
   >>> result.wkt
   'GEOMETRYCOLLECTION (LINESTRING (0 0, 1 1), LINESTRING (1 1, 2 2))'
 
+Substring
+---------
+
+The :func:`~shapely.ops.substring` function in `shapely.ops` returns a line segment between specified distances along a linear geometry.
+
+.. function:: shapely.ops.substring(geom, start_dist, end_dist[, normalized=False])
+
+    Negative distance values are taken as measured in the reverse
+    direction from the end of the geometry. Out-of-range index
+    values are handled by clamping them to the valid range of values.
+    
+    If the start distance equals the end distance, a point is being returned.
+    
+    If the normalized arg is True, the distance will be interpreted as a
+    fraction of the geometry's length.
+
+   `New in version 1.7.0`
+
+.. code-block:: pycon
+
+  >>> line = LineString(([0, 0], [2, 0]))
+  >>> result = substring(line, 0.5, 0.6)
+  >>> result.wkt
+  'LINESTRING (0.5 0, 0.6 0)'
+
 Prepared Geometry Operations
 ----------------------------
 
@@ -2315,8 +2359,14 @@ constructor to create an R-tree that you can query with another geometric object
 
   `New in version 1.4.0`.
 
-Query-only means in this case that the R-tree, once created, is immutable. You
-cannot add or remove geometries.
+The `query` method on `STRtree` returns a list of all geometries in the tree that
+intersect the provided geometry argument. If you want to match geometries of a
+more specific spatial relationship (eg. crosses, contains, overlaps), consider
+performing the query on the R-tree, followed by a manual search through the
+returned subset using the desired binary predicate.
+
+Query-only means that once created, the R-tree is immutable. You cannot 
+add or remove geometries.
 
 .. code-block:: pycon
 

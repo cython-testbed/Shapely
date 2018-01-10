@@ -1,6 +1,31 @@
 Changes
 =======
 
+Next
+-----
+
+New features:
+
+- Use DLLs indicated in sys._MEIPASS' to support PyInstaller frozen apps
+  (#523).
+
+1.6.3 (2017-12-09)
+------------------
+
+- AttributeError is no longer raised when accessing __geo_interface__ of an
+  empty polygon (#450).
+- ``asShape`` now handles empty coordinates in mappings as ``shape`` does
+  (#542). Please note that ``asShape`` is likely to be deprecated in a future
+  version of Shapely.
+- Check for length of LineString coordinates in speed mode, preventing crashes
+  when using LineStrings with only one coordinate (#546).
+
+1.6.2 (2017-10-30)
+------------------
+
+- A 1.6.2.post1 release has been made to fix a problem with macosx wheels
+  uploaded to PyPI.
+
 1.6.2 (2017-10-26)
 ------------------
 
