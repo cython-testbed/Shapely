@@ -12,10 +12,10 @@ import os
 import re
 import sys
 import threading
+from functools import partial
 
 from .ctypes_declarations import prototype, EXCEPTION_HANDLER_FUNCTYPE
 from .errors import WKBReadingError, WKTReadingError, TopologicalError, PredicateError
-from . import ftools
 
 
 # Add message handler to this module's logger
@@ -661,7 +661,7 @@ class LGEOS310(LGEOSBase):
         for key in [x for x in keys if not x.endswith('_r')]:
             if key + '_r' in keys:
                 reentr_func = getattr(self._lgeos, key + '_r')
-                attr = ftools.partial(reentr_func, self.geos_handle)
+                attr = partial(reentr_func, self.geos_handle)
                 attr.__name__ = reentr_func.__name__
                 setattr(self, key, attr)
             else:
@@ -803,7 +803,7 @@ class LGEOS330(LGEOS320):
         # GEOSPolygonize_full. We patch it in explicitly here.
         key = 'GEOSPolygonize_full'
         func = getattr(self._lgeos, key + '_r')
-        attr = ftools.partial(func, self.geos_handle)
+        attr = partial(func, self.geos_handle)
         attr.__name__ = func.__name__
         setattr(self, key, attr)
 
@@ -837,7 +837,18 @@ class LGEOS340(LGEOS330):
         self.methods['nearest_points'] = self.GEOSNearestPoints
 
 
-if geos_version >= (3, 4, 0):
+class LGEOS350(LGEOS340):
+    """Proxy for GEOS 3.5.0-CAPI-1.9.0
+    """
+    
+    def __init__(self, dll):
+        super(LGEOS350, self).__init__(dll)
+        self.methods['clip_by_rect'] = self.GEOSClipByRect
+
+
+if geos_version >= (3, 5, 0):
+    L = LGEOS350
+elif geos_version >= (3, 4, 0):
     L = LGEOS340
 elif geos_version >= (3, 3, 0):
     L = LGEOS330

@@ -5,13 +5,13 @@ The Shapely User Manual
 =======================
 
 :Author: Sean Gillies, <sean.gillies@gmail.com>
-:Version: 1.6
+:Version: 1.6.4
 :Date: |today|
 :Copyright:
   This work is licensed under a `Creative Commons Attribution 3.0
   United States License`__.
 
-.. __: http://creativecommons.org/licenses/by/3.0/us/
+.. __: https://creativecommons.org/licenses/by/3.0/us/
 
 :Abstract:
   This document explains how to use the Shapely Python package for
@@ -107,7 +107,7 @@ The standard data model has additional constraints specific to certain types
 of geometric objects that will be discussed in following sections of this
 manual.
 
-See also http://www.vividsolutions.com/jts/discussion.htm#spatialDataModel
+See also https://web.archive.org/web/20160719195511/http://www.vividsolutions.com/jts/discussion.htm
 for more illustrations of this data model.
 
 .. _intro-relationships:
@@ -443,7 +443,7 @@ instance, thereby making a copy.
 
 .. code-block:: pycon
 
-  >>> LinearRring(ring)
+  >>> LinearRing(ring)
   <shapely.geometry.polygon.LinearRing object at 0x...>
 
 As with `LineString`, a sequence of `Point` instances is not a valid
@@ -596,8 +596,7 @@ the iterator protocol using ``in``  or ``list()``.
   [<shapely.geometry.point.Point object at 0x...>,
    <shapely.geometry.linestring.LineString object at 0x...>]
 
-Homogeneous collections can also be sliced, resulting in a new object of the
-same type.
+Collections can also be sliced.
 
 .. code-block:: pycon
 
@@ -1349,7 +1348,7 @@ the square.
   '0F2FF1FF2'
 
 Further discussion of the DE-9IM matrix is beyond the scope of this manual. See
-[4]_ and http://pypi.python.org/pypi/de9im.
+[4]_ and https://pypi.org/project/de9im/.
 
 .. _analysis-methods:
 
@@ -2615,10 +2614,9 @@ speedups are enabled with the :attr:`enabled` attribute.
 Conclusion
 ==========
 
-We hope that you will enjoy and profit from using Shapely. Questions and
-comments are welcome on the GIS-Python email list_. This manual will be updated
-and improved regularly. Its source is available at
-http://github.com/Toblerity/Shapely/tree/master/docs/.
+We hope that you will enjoy and profit from using Shapely. This manual will
+be updated and improved regularly. Its source is available at
+https://github.com/Toblerity/Shapely/tree/master/docs/.
 
 
 References
@@ -2651,20 +2649,18 @@ References
    1973, pp. 112-122.
 
 
-.. _GEOS: http://trac.osgeo.org/geos/
-.. _Java Topology Suite: https://www.locationtech.org/projects/technology.jts
-.. _JTS: https://www.locationtech.org/projects/technology.jts
+.. _GEOS: https://trac.osgeo.org/geos/
+.. _Java Topology Suite: https://projects.eclipse.org/projects/locationtech.jts
+.. _JTS: https://projects.eclipse.org/projects/locationtech.jts
 .. _PostGIS: http://postgis.refractions.net
-.. _record: http://pypi.python.org/pypi/Shapely
-.. _wiki: http://trac.gispython.org/lab/wiki/Shapely
+.. _record: https://pypi.org/project/Shapely/
 .. _Open Geospatial Consortium: http://www.opengeospatial.org/
-.. _Davis: http://lin-ear-th-inking.blogspot.com/2007/06/subtleties-of-ogc-covers-spatial.html
+.. _Davis: https://lin-ear-th-inking.blogspot.com/2007/06/subtleties-of-ogc-covers-spatial.html
 .. _Understanding spatial relations: http://edndoc.esri.com/arcsde/9.1/general_topics/understand_spatial_relations.htm
-.. _Strobl-PDF: http://giswiki.hsr.ch/images/3/3d/9dem_springer.pdf
+.. _Strobl-PDF: https://giswiki.hsr.ch/images/3/3d/9dem_springer.pdf
 .. |Strobl-PDF| replace:: PDF
-.. _JTS-PDF: http://www.vividsolutions.com/jts/bin/JTS%20Technical%20Specs.pdf
+.. _JTS-PDF: https://github.com/locationtech/jts/raw/master/doc/JTS%20Technical%20Specs.pdf
 .. |JTS-PDF| replace:: PDF
-.. _frozenset: http://docs.python.org/library/stdtypes.html#frozenset
-.. _Sorting HowTo: http://wiki.python.org/moin/HowTo/Sorting/
-.. _Python geo interface: http://gist.github.com/2217756
-.. _list: http://lists.gispython.org/mailman/listinfo/community
+.. _frozenset: https://docs.python.org/library/stdtypes.html#frozenset
+.. _Sorting HowTo: https://wiki.python.org/moin/HowTo/Sorting/
+.. _Python geo interface: https://gist.github.com/2217756
