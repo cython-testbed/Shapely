@@ -3,10 +3,12 @@ import ctypes
 
 class STRtree:
     """
-    STRtree is an R-tree that is created using the Sort-Tile-Recursive
-    algorithm. STRtree takes a sequence of geometry objects as initialization
-    parameter. After initialization the query method can be used to make a
-    spatial query over those objects.
+    STRtree is an R-tree spatial index that is created using the
+    Sort-Tile-Recursive algorithm.
+    
+    STRtree takes a sequence of geometry objects as initialization
+    parameter. Once created, it is immutable. The query method can
+    be used to make spatial queries over the objects on the index.
 
     >>> from shapely.geometry import Polygon
     >>> polys = [ Polygon(((0, 0), (1, 0), (1, 1))), Polygon(((0, 1), (0, 0), (1, 0))), Polygon(((100, 100), (101, 100), (101, 101))) ]
@@ -48,6 +50,9 @@ class STRtree:
             self._tree_handle = None
 
     def query(self, geom):
+        """Returns a list of objects on the index whose extents
+        intersect the given geometry's extents.
+        """
         if self._n_geoms == 0:
             return []
 
@@ -59,6 +64,28 @@ class STRtree:
 
         lgeos.GEOSSTRtree_query(self._tree_handle, geom._geom, lgeos.GEOSQueryCallback(callback), None)
 
+        return result
+
+    def nearest(self, geom):
+        if self._n_geoms == 0:
+            return None
+        
+        envelope = geom.envelope
+
+        def callback(item1, item2, distance, userdata):
+            try:
+                geom1 = ctypes.cast(item1, ctypes.py_object).value
+                geom2 = ctypes.cast(item2, ctypes.py_object).value
+                dist = ctypes.cast(distance, ctypes.POINTER(ctypes.c_double))
+                lgeos.GEOSDistance(geom1._geom, geom2._geom, dist)
+                return 1
+            except:
+                return 0 
+        
+        item = lgeos.GEOSSTRtree_nearest_generic(self._tree_handle, ctypes.py_object(geom), envelope._geom, \
+            lgeos.GEOSDistanceCallback(callback), None)
+        result = ctypes.cast(item, ctypes.py_object).value
+        
         return result
 
 if __name__ == "__main__":

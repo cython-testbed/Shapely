@@ -21,6 +21,12 @@ from .errors import WKBReadingError, WKTReadingError, TopologicalError, Predicat
 # Add message handler to this module's logger
 LOG = logging.getLogger(__name__)
 
+if sys.version_info[0] >= 3:
+    text_types = str
+else:
+    text_types = (str, unicode)
+
+
 # Find and load the GEOS and C libraries
 # If this ever gets any longer, we'll break it into separate modules
 
@@ -66,8 +72,7 @@ if sys.platform.startswith('linux'):
         _lgeos = CDLL(geos_whl_so[0])
         LOG.debug("Found GEOS DLL: %r, using it.", _lgeos)
     elif hasattr(sys, 'frozen'):
-        geos_pyinstaller_so = glob.glob(os.path.join(sys.prefix,
-                                                    'libgeos_c-*.so.*'))
+        geos_pyinstaller_so = glob.glob(os.path.join(sys.prefix, 'libgeos_c-*.so.*'))
         if len(geos_pyinstaller_so) == 1:
             _lgeos = CDLL(geos_pyinstaller_so[0])
             LOG.debug("Found GEOS DLL: %r, using it.", _lgeos)
@@ -80,7 +85,11 @@ if sys.platform.startswith('linux'):
             'libgeos_c.so',
         ]
         _lgeos = load_dll('geos_c', fallbacks=alt_paths)
-    free = load_dll('c').free
+    # Necessary for environments with only libc.musl
+    c_alt_paths = [
+        'libc.musl-x86_64.so.1'
+    ]
+    free = load_dll('c', fallbacks=c_alt_paths).free
     free.argtypes = [c_void_p]
     free.restype = None
 
@@ -88,9 +97,16 @@ elif sys.platform == 'darwin':
     # Test to see if we have a delocated wheel with a GEOS dylib.
     geos_whl_dylib = os.path.abspath(os.path.join(os.path.dirname(
         __file__), '.dylibs/libgeos_c.1.dylib'))
+
     if os.path.exists(geos_whl_dylib):
-        _lgeos = CDLL(geos_whl_dylib)
-        LOG.debug("Found GEOS DLL: %r, using it.", _lgeos)
+        handle = CDLL(None)
+        if hasattr(handle, "initGEOS_r"):
+            LOG.debug("GEOS already loaded")
+            _lgeos = handle
+        else:
+            _lgeos = CDLL(geos_whl_dylib)
+            LOG.debug("Found GEOS DLL: %r, using it.", _lgeos)
+
     elif os.getenv('CONDA_PREFIX', ''):
         # conda package.
         _lgeos = CDLL(os.path.join(sys.prefix, 'lib', 'libgeos_c.dylib'))
@@ -114,6 +130,8 @@ elif sys.platform == 'darwin':
                 "/Library/Frameworks/GEOS.framework/Versions/Current/GEOS",
                 # macports
                 '/opt/local/lib/libgeos_c.dylib',
+                # homebrew
+                '/usr/local/lib/libgeos_c.dylib',
             ]
         _lgeos = load_dll('geos_c', fallbacks=alt_paths)
 
@@ -203,7 +221,7 @@ if geos_version >= (3, 1, 0):
                 # finishGEOS.
                 new_func.argtypes = [c_void_p]
             else:
-                new_func.argtypes = [c_void_p] + old_func.argtypes
+                new_func.argtypes = [c_void_p] + list(old_func.argtypes)
             if old_func.errcheck is not None:
                 new_func.errcheck = old_func.errcheck
 
@@ -257,9 +275,12 @@ class WKTReader(object):
 
     def read(self, text):
         """Returns geometry from WKT"""
+        if not isinstance(text, text_types):
+            raise TypeError("Only str is accepted.")
         if sys.version_info[0] >= 3:
-            text = text.encode('ascii')
-        geom = self._lgeos.GEOSWKTReader_read(self._reader, c_char_p(text))
+            text = text.encode()
+        c_string = c_char_p(text)
+        geom = self._lgeos.GEOSWKTReader_read(self._reader, c_string)
         if not geom:
             raise WKTReadingError(
                 "Could not create geometry because of errors "
@@ -823,6 +844,7 @@ class LGEOS330(LGEOS320):
         self.methods['cascaded_union'] = self.methods['unary_union']
         self.methods['snap'] = self.GEOSSnap
         self.methods['shared_paths'] = self.GEOSSharedPaths
+        self.methods['buffer_with_params'] = self.GEOSBufferWithParams
 
 
 class LGEOS340(LGEOS330):
@@ -840,7 +862,7 @@ class LGEOS340(LGEOS330):
 class LGEOS350(LGEOS340):
     """Proxy for GEOS 3.5.0-CAPI-1.9.0
     """
-    
+
     def __init__(self, dll):
         super(LGEOS350, self).__init__(dll)
         self.methods['clip_by_rect'] = self.GEOSClipByRect
