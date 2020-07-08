@@ -2,9 +2,7 @@
 """
 
 import sys
-
-if sys.version_info[0] < 3:
-    range = xrange
+import warnings
 
 from ctypes import c_void_p, cast, POINTER
 import weakref
@@ -15,7 +13,7 @@ from shapely.geometry.base import BaseGeometry, geos_geom_from_py
 from shapely.geometry.linestring import LineString, LineStringAdapter
 from shapely.geometry.point import Point
 from shapely.geometry.proxy import PolygonProxy
-from shapely.errors import TopologicalError
+from shapely.errors import TopologicalError, ShapelyDeprecationWarning
 
 
 __all__ = ['Polygon', 'asPolygon', 'LinearRing', 'asLinearRing']
@@ -52,7 +50,9 @@ class LinearRing(LineString):
         """
         BaseGeometry.__init__(self)
         if coordinates is not None:
-            self._set_coords(coordinates)
+            ret = geos_linearring_from_py(coordinates)
+            if ret is not None:
+                self._geom, self._ndim = ret
 
     @property
     def __geo_interface__(self):
@@ -66,6 +66,10 @@ class LinearRing(LineString):
     _get_coords = BaseGeometry._get_coords
 
     def _set_coords(self, coordinates):
+        warnings.warn(
+            "Setting the 'coords' to mutate a Geometry in place is deprecated,"
+            " and will not be possible any more in Shapely 2.0",
+            ShapelyDeprecationWarning, stacklevel=2)
         self.empty()
         ret = geos_linearring_from_py(coordinates)
         if ret is not None:
@@ -99,6 +103,12 @@ class LinearRingAdapter(LineStringAdapter):
     __p__ = None
 
     def __init__(self, context):
+        warnings.warn(
+            "The proxy geometries (through the 'asShape()', 'asLinearRing()' or "
+            "'LinearRingAdapter()' constructors) are deprecated and will be "
+            "removed in Shapely 2.0. Use the 'shape()' function or the "
+            "standard 'LinearRing()' constructor instead.",
+            ShapelyDeprecationWarning, stacklevel=3)
         self.context = context
         self.factory = geos_linearring_from_py
 
@@ -145,9 +155,6 @@ class InteriorRingSequence(object):
             return ring
         else:
             raise StopIteration
-
-    if sys.version_info[0] < 3:
-        next = __next__
 
     def __len__(self):
         return lgeos.GEOSGetNumInteriorRings(self._geom)
@@ -366,6 +373,12 @@ class Polygon(BaseGeometry):
 class PolygonAdapter(PolygonProxy, Polygon):
 
     def __init__(self, shell, holes=None):
+        warnings.warn(
+            "The proxy geometries (through the 'asShape()', 'asPolygon()' or "
+            "'PolygonAdapter()' constructors) are deprecated and will be "
+            "removed in Shapely 2.0. Use the 'shape()' function or the "
+            "standard 'Polygon()' constructor instead.",
+            ShapelyDeprecationWarning, stacklevel=4)
         self.shell = shell
         self.holes = holes
         self.context = (shell, holes)
@@ -425,7 +438,7 @@ def geos_linearring_from_py(ob, update_geom=None, update_ndim=0):
 
     try:
         m = len(ob)
-    except TypeError:  # Iterators, e.g. Python 3 zip
+    except TypeError:  # generators
         ob = list(ob)
         m = len(ob)
 

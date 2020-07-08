@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 # geos_linestring_from_py was transcribed from shapely.geometry.linestring
 # geos_linearring_from_py was transcribed from shapely.geometry.polygon
 # coordseq_ctypes was transcribed from shapely.coords.CoordinateSequence.ctypes
@@ -126,7 +128,7 @@ def geos_linestring_from_py(ob, update_geom=None, update_ndim=0):
             cs = GEOSCoordSeq_create_r(handle, <int>m, <int>n)
 
         # add to coordinate sequence
-        for i in xrange(m):
+        for i in range(m):
             dx = cp[sm*i]
             dy = cp[sm*i+sn]
             dz = 0
@@ -144,7 +146,7 @@ def geos_linestring_from_py(ob, update_geom=None, update_ndim=0):
         # Fall back on list
         try:
             m = len(ob)
-        except TypeError:  # Iterators, e.g. Python 3 zip
+        except TypeError:  # generators
             ob = list(ob)
             m = len(ob)
 
@@ -182,15 +184,16 @@ def geos_linestring_from_py(ob, update_geom=None, update_ndim=0):
             cs = GEOSCoordSeq_create_r(handle, <int>m, <int>n)
 
         # add to coordinate sequence
-        for i in xrange(m):
+        for i in range(m):
             coords = _coords(ob[i])
             dx = coords[0]
             dy = coords[1]
             dz = 0
             if n == 3:
-                if len(coords) != 3:
+                try:
+                    dz = coords[2]
+                except IndexError:
                     raise ValueError("Inconsistent coordinate dimensionality")
-                dz = coords[2]
             
             # Because of a bug in the GEOS C API, 
             # always set X before Y
@@ -289,7 +292,7 @@ def geos_linearring_from_py(ob, update_geom=None, update_ndim=0):
             cs = GEOSCoordSeq_create_r(handle, M, n)
 
         # add to coordinate sequence
-        for i in xrange(m):
+        for i in range(m):
             dx = cp[sm*i]
             dy = cp[sm*i+sn]
             dz = 0
@@ -322,7 +325,7 @@ def geos_linearring_from_py(ob, update_geom=None, update_ndim=0):
         # Fall back on list
         try:
             m = len(ob)
-        except TypeError:  # Iterators, e.g. Python 3 zip
+        except TypeError:  # generators
             ob = list(ob)
             m = len(ob)
 
@@ -362,13 +365,16 @@ def geos_linearring_from_py(ob, update_geom=None, update_ndim=0):
             cs = GEOSCoordSeq_create_r(handle, M, n)
         
         # add to coordinate sequence
-        for i in xrange(m):
+        for i in range(m):
             coords = _coords(ob[i])
             dx = coords[0]
             dy = coords[1]
             dz = 0
             if n == 3:
-                dz = coords[2]
+                try:
+                    dz = coords[2]
+                except IndexError:
+                    raise ValueError("Inconsistent coordinate dimensionality")
         
             # Because of a bug in the GEOS C API, 
             # always set X before Y
@@ -384,7 +390,10 @@ def geos_linearring_from_py(ob, update_geom=None, update_ndim=0):
             dy = coords[1]
             dz = 0
             if n == 3:
-                dz = coords[2]
+                try:
+                    dz = coords[2]
+                except IndexError:
+                    raise ValueError("Inconsistent coordinate dimensionality")
         
             # Because of a bug in the GEOS C API, 
             # always set X before Y
@@ -417,7 +426,7 @@ def coordseq_ctypes(self):
     cs = cast_seq(self._cseq)
     data_p = <double *><uintptr_t>ctypes.addressof(data)
     
-    for i in xrange(m):
+    for i in range(m):
         GEOSCoordSeq_getX_r(handle, cs, i, &temp)
         data_p[n*i] = temp
         GEOSCoordSeq_getY_r(handle, cs, i, &temp)

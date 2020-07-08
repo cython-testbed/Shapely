@@ -200,6 +200,22 @@ General Attributes and Methods
 
   Returns the length (``float``) of the object.
 
+.. attribute:: object.minimum_clearance
+
+  Returns the smallest distance by which a node could be moved to produce an invalid geometry.
+
+  This can be thought of as a measure of the robustness of a geometry, where larger values of
+  minimum clearance indicate a more robust geometry. If no minimum clearance exists for a geometry,
+  such as a point, this will return `math.infinity`.
+
+  Requires GEOS 3.6 or higher.
+
+.. code-block:: pycon
+
+  >>> from shapely.geometry import Polygon
+  >>> Polygon([[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]).minimum_clearance
+  1.0
+
 .. attribute:: object.geom_type
 
   Returns a string specifying the `Geometry Type` of the object in accordance
@@ -551,7 +567,8 @@ To obtain a polygon with a known orientation, use
 
   Returns a properly oriented copy of the given polygon. The signed area of the
   result will have the given sign. A sign of 1.0 means that the coordinates of
-  the product's exterior ring will be oriented counter-clockwise.
+  the product's exterior ring will be oriented counter-clockwise and the interior 
+  rings (holes) will be oriented clockwise.
 
   `New in version 1.2.10`.
 
@@ -1975,9 +1992,16 @@ Shapely supports map projections and other arbitrary transformations of geometri
   geometry of the same type from the transformed coordinates.
 
   `func` maps x, y, and optionally z to output xp, yp, zp. The input
-  parameters may iterable types like lists or arrays or single values.
+  parameters may be iterable types like lists or arrays or single values.
   The output shall be of the same type: scalars in, scalars out;
   lists in, lists out.
+
+  `transform` tries to determine which kind of function was passed in
+  by calling `func` first with n iterables of coordinates, where n
+  is the dimensionality of the input geometry. If `func` raises
+  a `TypeError` when called with iterables as arguments,
+  then it will instead call `func` on each individual coordinate
+  in the geometry.
 
   `New in version 1.2.18`.
 
@@ -1991,30 +2015,45 @@ For example, here is an identity function applicable to both types of input
 
     g2 = transform(id_func, g1)
 
-A partially applied transform function from pyproj satisfies the requirements
-for `func`.
+
+If using `pyproj>=2.1.0`, the preferred method to project geometries is:
 
 .. code-block:: python
 
+    import pyproj
+
+    from shapely.geometry import Point
     from shapely.ops import transform
+
+    wgs84_pt = Point(-72.2495, 43.886)
+
+    wgs84 = pyproj.CRS('EPSG:4326')
+    utm = pyproj.CRS('EPSG:32618')
+
+    project = pyproj.Transformer.from_crs(wgs84, utm, always_xy=True).transform
+    utm_point = transform(project, wgs84_pt)
+
+It is important to note that in the example above, the `always_xy` kwarg is required as Shapely only supports coordinates in X,Y
+order, and in PROJ 6 the WGS84 CRS uses the EPSG-defined Lat/Lon coordinate order instead of the expected Lon/Lat.
+
+If using `pyproj < 2.1`, then the canonical example is:
+
+.. code-block:: python
+
     from functools import partial
     import pyproj
 
-    proj_in = pyproj.Proj(init='epsg:4326')
-    proj_out = pyproj.Proj(init='epsg:26913')
+    from shapely.ops import transform
+
+    wgs84 = pyproj.Proj(init='epsg:4326')
+    utm = pyproj.Proj(init='epsg:32618')
 
     project = partial(
         pyproj.transform,
-        proj_in,
-        proj_out)
+        wgs84,
+        utm)
 
-    g2 = transform(project, g1)
-
-If using `pyproj>=2.1.0` a more performant method would be
-
-.. code-block:: python
-
-    project = pyproj.Transformer.from_proj(proj_in, proj_out).transform
+    utm_point = transform(project, wgs84_pt)
 
 Lambda expressions such as the one in
 
@@ -2194,6 +2233,51 @@ Delaunay triangulation from a collection of points.
    'POLYGON ((2 2, 1 1, 3 1, 2 2))',
    'POLYGON ((3 1, 1 1, 1 0, 3 1))',
    'POLYGON ((1 0, 1 1, 0 0, 1 0))']
+
+Voronoi Diagram
+---------------
+
+The :func:`~shapely.ops.voronoi_diagram` function in `shapely.ops` constructs a
+Voronoi diagram from a collection points, or the vertices of any geometry.
+
+.. plot:: code/voronoi_diagram.py
+
+.. function:: shapely.ops.voronoi_diagram(geom, envelope=None, tolerance=0.0, edges=False)
+
+   Constructs a Voronoi diagram from the vertices of the input geometry.
+
+   The source may be any geometry type. All vertices of the geometry will be
+   used as the input points to the diagram.
+
+   The `envelope` keyword argument provides an envelope to use to clip the
+   resulting diagram. If `None`, it will be calculated automatically.
+   The diagram will be clipped to the *larger* of the provided envelope
+   or an envelope surrounding the sites.
+
+   The `tolerance` keyword argument sets the snapping tolerance used to improve
+   the robustness of the computation. A tolerance of 0.0 specifies
+   that no snapping will take place. The tolerance `argument` can be
+   finicky and is known to cause the algorithm to fail in several cases.
+   If you're using `tolerance` and getting a failure, try removing it.
+   The test cases in `tests/test_voronoi_diagram.py` show more details.
+
+   If the `edges` keyword argument is `False` a list of `Polygon`s
+   will be returned. Otherwise a list of `LineString` edges is returned.
+
+
+.. code-block:: pycon
+
+  >>> from shapely.ops import voronoi_diagram
+  >>> points = MultiPoint([(0, 0), (1, 1), (0, 2), (2, 2), (3, 1), (1, 0)])
+  >>> regions = voronoi_diagram(points)
+  >>> pprint([region.wkt for region in regions])
+  ['POLYGON ((2 1, 2 0.5, 0.5 0.5, 0 1, 1 2, 2 1))',
+   'POLYGON ((6 5, 6 -3, 3.75 -3, 2 0.5, 2 1, 6 5))',
+   'POLYGON ((0.5 -3, -3 -3, -3 1, 0 1, 0.5 0.5, 0.5 -3))',
+   'POLYGON ((3.75 -3, 0.5 -3, 0.5 0.5, 2 0.5, 3.75 -3))',
+   'POLYGON ((-3 1, -3 5, 1 5, 1 2, 0 1, -3 1))',
+   'POLYGON ((1 5, 6 5, 2 1, 1 2, 1 5))']
+
 
 Nearest points
 --------------
@@ -2376,6 +2460,47 @@ be parsed out.
   >>> explain_validity(p)
   'Ring Self-intersection[1 1]'
 
+.. function:: validation.make_valid(ob)
+
+  Returns a valid representation of the geometry, if it is invalid.
+  If it is valid, the input geometry will be returned.
+
+  In many cases, in order to create a valid geometry, the input geometry
+  must be split into multiple parts or multiple geometries. If the geometry
+  must be split into multiple parts of the same geometry type, then a multi-part
+  geometry (e.g. a MultiPolygon) will be returned. if the geometry must be split
+  into multiple parts of different types, then a GeometryCollection will be returned.
+
+  For example, this operation on a geometry with a bow-tie structure:
+
+.. code-block:: pycon
+
+  >>> from shapely.validation import make_valid
+  >>> coords = [(0, 0), (0, 2), (1, 1), (2, 2), (2, 0), (1, 1), (0, 0)]
+  >>> p = Polygon(coords)
+  >>> str(make_valid(p))
+  'MULTIPOLYGON (((0 0, 0 2, 1 1, 0 0)), ((1 1, 2 2, 2 0, 1 1)))'
+
+  Yields a MultiPolygon with two parts:
+
+.. plot:: code/make_valid_multipolygon.py
+
+  While this operation:
+
+.. code-block:: pycon
+
+  >>> from shapely.validation import make_valid
+  >>> coords = [(0, 2), (0, 1), (2, 0), (0, 0), (0, 2)]
+  >>> p = Polygon(coords)
+  >>> str(make_valid(p))
+
+  Yields a GeometryCollection with a Polygon and a LineString:
+
+.. plot:: code/make_valid_geometrycollection.py
+
+  `New in version 1.8`
+  `Requires GEOS > 3.8`
+
 The Shapely version, GEOS library version, and GEOS C API version are
 accessible via :attr:`shapely.__version__`,
 :attr:`shapely.geos.geos_version_string`, and
@@ -2433,7 +2558,7 @@ cannot add or remove geometries.
 
   `New in version 1.4.0`.
 
-  .. method:: strtree.query(goem)
+  .. method:: strtree.query(geom)
 
     Returns a list of all geometries in the `strtree` whose extents intersect the
     extent of `geom`. This means that a subsequent search through the returned
@@ -2548,15 +2673,12 @@ adapted to Numpy arrays.
 
 .. code-block:: pycon
 
-  >>> from numpy import array
-  >>> array(Point(0, 0))
+  >>> from numpy import asarray
+  >>> asarray(Point(0, 0))
   array([ 0.,  0.])
-  >>> array(LineString([(0, 0), (1, 1)]))
+  >>> asarray(LineString([(0, 0), (1, 1)]))
   array([[ 0.,  0.],
          [ 1.,  1.]])
-
-The :func:`numpy.asarray` function does not copy coordinate values – at the
-price of slower Numpy access to the coordinates of Shapely objects.
 
 .. note::
 
@@ -2713,7 +2835,7 @@ Conclusion
 
 We hope that you will enjoy and profit from using Shapely. This manual will
 be updated and improved regularly. Its source is available at
-https://github.com/Toblerity/Shapely/tree/maint-1.7/docs/.
+https://github.com/Toblerity/Shapely/tree/master/docs/.
 
 
 References

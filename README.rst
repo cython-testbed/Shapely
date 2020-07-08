@@ -4,14 +4,14 @@ Shapely
 
 |travis| |appveyor| |coveralls|
 
-.. |travis| image:: https://travis-ci.org/Toblerity/Shapely.svg?branch=maint-1.7
+.. |travis| image:: https://travis-ci.org/Toblerity/Shapely.svg?branch=master
    :target: https://travis-ci.org/Toblerity/Shapely
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/Toblerity/Shapely?branch=maint-1.7&svg=true
-   :target: https://ci.appveyor.com/project/frsci/shapely?branch=maint-1.7
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/github/Toblerity/Shapely?branch=master&svg=true
+   :target: https://ci.appveyor.com/project/frsci/shapely?branch=master
 
-.. |coveralls| image:: https://coveralls.io/repos/github/Toblerity/Shapely/badge.svg?branch=maint-1.7
-   :target: https://coveralls.io/github/Toblerity/Shapely?branch=maint-1.7
+.. |coveralls| image:: https://coveralls.io/repos/github/Toblerity/Shapely/badge.svg?branch=master
+   :target: https://coveralls.io/github/Toblerity/Shapely?branch=master
 
 Manipulation and analysis of geometric objects in the Cartesian plane.
 

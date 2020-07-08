@@ -2,8 +2,9 @@
 """
 
 from ctypes import c_double
+import warnings
 
-from shapely.errors import DimensionError
+from shapely.errors import DimensionError, ShapelyDeprecationWarning
 from shapely.geos import lgeos
 from shapely.geometry.base import BaseGeometry, geos_geom_from_py
 from shapely.geometry.proxy import CachingGeometryProxy
@@ -45,7 +46,14 @@ class Point(BaseGeometry):
         """
         BaseGeometry.__init__(self)
         if len(args) > 0:
-            self._set_coords(*args)
+            if len(args) == 1:
+                self._geom, self._ndim = geos_point_from_py(args[0])
+            elif len(args) > 3:
+                raise TypeError(
+                    "Point() takes at most 3 arguments ({} given)".format(len(args))
+                )
+            else:
+                self._geom, self._ndim = geos_point_from_py(tuple(args))
 
     # Coordinate getters and setters
 
@@ -128,6 +136,10 @@ class Point(BaseGeometry):
     # Coordinate access
 
     def _set_coords(self, *args):
+        warnings.warn(
+            "Setting the 'coords' to mutate a Geometry in place is deprecated,"
+            " and will not be possible any more in Shapely 2.0",
+            ShapelyDeprecationWarning, stacklevel=2)
         self.empty()
         if len(args) == 1:
             self._geom, self._ndim = geos_point_from_py(args[0])
@@ -157,6 +169,12 @@ class PointAdapter(CachingGeometryProxy, Point):
     _other_owned = False
 
     def __init__(self, context):
+        warnings.warn(
+            "The proxy geometries (through the 'asShape()', 'asPoint()' or "
+            "'PointAdapter()' constructors) are deprecated and will be "
+            "removed in Shapely 2.0. Use the 'shape()' function or the "
+            "standard 'Point()' constructor instead.",
+            ShapelyDeprecationWarning, stacklevel=4)
         self.context = context
         self.factory = geos_point_from_py
 
@@ -203,7 +221,7 @@ def geos_point_from_py(ob, update_geom=None, update_ndim=0):
         return geos_geom_from_py(ob)
 
     # Accept either (x, y) or [(x, y)]
-    if not hasattr(ob, '__getitem__'):  # Iterators, e.g. Python 3 zip
+    if not hasattr(ob, '__getitem__'):  # generators
         ob = list(ob)
 
     if isinstance(ob[0], tuple):

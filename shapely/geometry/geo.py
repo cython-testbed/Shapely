@@ -1,6 +1,10 @@
 """
 Geometry factories based on the geo interface
 """
+import warnings
+
+from shapely.errors import ShapelyDeprecationWarning
+
 from .point import Point, asPoint
 from .linestring import LineString, asLineString
 from .polygon import Polygon, asPolygon
@@ -60,8 +64,35 @@ def box(minx, miny, maxx, maxy, ccw=True):
 
 
 def shape(context):
-    """Returns a new, independent geometry with coordinates *copied* from the
-    context.
+    """
+    Returns a new, independent geometry with coordinates *copied* from the
+    context. Changes to the original context will not be reflected in the
+    geometry object.
+
+    Parameters
+    ----------
+    context :
+        a GeoJSON-like dict, which provides a "type" member describing the type
+        of the geometry and "coordinates" member providing a list of coordinates,
+        or an object which implements __geo_interface__.
+
+    Returns
+    -------
+    Geometry object
+
+    Example
+    -------
+    Create a Point from GeoJSON, and then create a copy using __geo_interface__.
+
+    >>> context = {'type': 'Point', 'coordinates': [0, 1]}
+    >>> geom = shape(context)
+    >>> geom.type == 'Point'
+    True
+    >>> geom.wkt
+    'POINT (0 1)'
+    >>> geom2 = shape(geom)
+    >>> geom == geom2
+    True
     """
     if hasattr(context, "__geo_interface__"):
         ob = context.__geo_interface__
@@ -90,8 +121,47 @@ def shape(context):
 
 
 def asShape(context):
-    """Adapts the context to a geometry interface. The coordinates remain
-    stored in the context.
+    """
+    Adapts the context to a geometry interface. The coordinates remain
+    stored in the context, and changes to them will be reflected in the
+    returned geometry object.
+
+    .. deprecated:: 1.8
+       The proxy geometries (adapter classes) created by this function are
+       deprecated, and this function will be removed in Shapely 2.0.
+       Use the `shape` function instead to convert a GeoJSON-like dict
+       to a Shapely geometry.
+
+    Parameters
+    ----------
+    context :
+        a GeoJSON-like dict, which provides a "type" member describing the type
+        of the geometry and "coordinates" member providing a list of coordinates,
+        or an object which implements __geo_interface__.
+
+    Returns
+    -------
+    Geometry object
+
+    Notes
+    -----
+    The Adapter classes returned by this function trade performance for
+    reduced storage of coordinate values. In general, the shape() function
+    should be used instead.
+
+    Example
+    -------
+    Create a Point and Polygon from GeoJSON, change the coordinates of the Point's
+    context and show that the corresponding geometry is changed, as well.
+
+    >>> point_context = {'type': 'Point', 'coordinates': [0.5, 0.5]}
+    >>> poly_context = {'type': 'Polygon', 'coordinates': [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    >>> point, poly = asShape(point_context), asShape(poly_context)
+    >>> poly.intersects(point)
+    True
+    >>> point_context['coordinates'][0] = 1.5
+    >>> poly.intersects(point)
+    False
     """
     if hasattr(context, "__geo_interface__"):
         ob = context.__geo_interface__
@@ -117,11 +187,36 @@ def asShape(context):
         return MultiPolygonAdapter(ob["coordinates"], context_type='geojson')
     elif geom_type == "geometrycollection":
         geoms = [asShape(g) for g in ob.get("geometries", [])]
+        if len(geoms) == 0:
+            # in this case no asShape call already raised the warning
+            warnings.warn(
+                "The proxy geometries (through the 'asShape()' constructor) "
+                "are deprecated and will be removed in Shapely 2.0. Use the "
+                "'shape()' function instead.",
+                ShapelyDeprecationWarning, stacklevel=2)
         return GeometryCollection(geoms)
     else:
         raise ValueError("Unknown geometry type: %s" % geom_type)
 
 
 def mapping(ob):
-    """Returns a GeoJSON-like mapping"""
+    """
+    Returns a GeoJSON-like mapping from a Geometry or any
+    object which implements __geo_interface__
+
+    Parameters
+    ----------
+    ob :
+        An object which implements __geo_interface__.
+
+    Returns
+    -------
+    dict
+
+    Example
+    -------
+    >>> pt = Point(0, 0)
+    >>> mapping(p)
+    {'type': 'Point', 'coordinates': (0.0, 0.0)}
+    """
     return ob.__geo_interface__

@@ -1,13 +1,10 @@
 """Line strings and related utilities
 """
 
-import sys
-
-if sys.version_info[0] < 3:
-    range = xrange
-
 from ctypes import c_double
+import warnings
 
+from shapely.errors import ShapelyDeprecationWarning
 from shapely.geos import lgeos, TopologicalError
 from shapely.geometry.base import (
     BaseGeometry, geom_factory, JOIN_STYLE, geos_geom_from_py
@@ -45,7 +42,9 @@ class LineString(BaseGeometry):
         """
         BaseGeometry.__init__(self)
         if coordinates is not None:
-            self._set_coords(coordinates)
+            ret = geos_linestring_from_py(coordinates)
+            if ret is not None:
+                self._geom, self._ndim = ret
 
     @property
     def __geo_interface__(self):
@@ -93,6 +92,10 @@ class LineString(BaseGeometry):
 
     # Coordinate access
     def _set_coords(self, coordinates):
+        warnings.warn(
+            "Setting the 'coords' to mutate a Geometry in place is deprecated,"
+            " and will not be possible any more in Shapely 2.0",
+            ShapelyDeprecationWarning, stacklevel=2)
         self.empty()
         ret = geos_linestring_from_py(coordinates)
         if ret is not None:
@@ -151,6 +154,12 @@ class LineString(BaseGeometry):
 class LineStringAdapter(CachingGeometryProxy, LineString):
 
     def __init__(self, context):
+        warnings.warn(
+            "The proxy geometries (through the 'asShape()', 'asLineString()' or "
+            "'LineStringAdapter()' constructors) are deprecated and will be "
+            "removed in Shapely 2.0. Use the 'shape()' function or the "
+            "standard 'LineString()' constructor instead.",
+            ShapelyDeprecationWarning, stacklevel=4)
         self.context = context
         self.factory = geos_linestring_from_py
 
@@ -204,7 +213,7 @@ def geos_linestring_from_py(ob, update_geom=None, update_ndim=0):
 
     try:
         m = len(ob)
-    except TypeError:  # Iterators, e.g. Python 3 zip
+    except TypeError:  # generators
         ob = list(ob)
         m = len(ob)
 

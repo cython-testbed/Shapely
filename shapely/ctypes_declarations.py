@@ -102,7 +102,7 @@ def prototype(lgeos, geos_version):
     lgeos.GEOSCoordSeq_getDimensions.restype = c_int
     lgeos.GEOSCoordSeq_getDimensions.argtypes = [c_void_p, c_void_p]
 
-    # Linear refeferencing
+    # Linear referencing
 
     if geos_version >= (3, 2, 0):
 
@@ -248,6 +248,10 @@ def prototype(lgeos, geos_version):
         lgeos.GEOSDelaunayTriangulation.restype = c_void_p
         lgeos.GEOSDelaunayTriangulation.argtypes = [c_void_p, c_double, c_int]
 
+    if geos_version >= (3, 5, 0):
+        lgeos.GEOSVoronoiDiagram.restype = c_void_p
+        lgeos.GEOSVoronoiDiagram.argtypes = [c_void_p, c_void_p, c_double, c_int]
+
     lgeos.GEOSLineMerge.restype = c_void_p
     lgeos.GEOSLineMerge.argtypes = [c_void_p]
 
@@ -283,6 +287,9 @@ def prototype(lgeos, geos_version):
 
     lgeos.GEOSCovers.restype = c_byte
     lgeos.GEOSCovers.argtypes = [c_void_p, c_void_p]
+
+    lgeos.GEOSCoveredBy.restype = c_byte
+    lgeos.GEOSCoveredBy.argtypes = [c_void_p, c_void_p]
 
     lgeos.GEOSEquals.restype = c_byte
     lgeos.GEOSEquals.argtypes = [c_void_p, c_void_p]
@@ -538,3 +545,11 @@ def prototype(lgeos, geos_version):
         lgeos.GEOSSTRtree_nearest_generic.argtypes = [
             c_void_p, py_object, c_void_p, lgeos.GEOSDistanceCallback, py_object]
         lgeos.GEOSSTRtree_nearest_generic.restype = c_void_p
+
+        lgeos.GEOSMinimumClearance.argtypes = [c_void_p]
+        lgeos.GEOSMinimumClearance.restype = c_double
+
+    if geos_version >= (3, 8, 0):
+        lgeos.GEOSMakeValid.restype = c_void_p
+        lgeos.GEOSMakeValid.argtypes = [c_void_p]
+

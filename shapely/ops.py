@@ -1,27 +1,21 @@
 """Support for various GEOS geometry operations
 """
 
-import sys
-
-if sys.version_info[0] < 3:
-    from itertools import izip
-else:
-    izip = zip
-
 from ctypes import byref, c_void_p, c_double
 
 from shapely.prepared import prep
 from shapely.geos import lgeos
 from shapely.geometry.base import geom_factory, BaseGeometry, BaseMultipartGeometry
-from shapely.geometry import asShape, asLineString, asMultiLineString, Point, MultiPoint,\
-                             LineString, MultiLineString, Polygon, GeometryCollection
+from shapely.geometry import (
+    shape, Point, MultiPoint, LineString, MultiLineString, Polygon, GeometryCollection)
 from shapely.geometry.polygon import orient as orient_
 from shapely.algorithms.polylabel import polylabel
 
 
 __all__ = ['cascaded_union', 'linemerge', 'operator', 'polygonize',
            'polygonize_full', 'transform', 'unary_union', 'triangulate',
-           'split', 'section']
+           'voronoi_diagram', 'split', 'nearest_points', 'validate', 'snap',
+           'shared_paths', 'clip_by_rect', 'orient', 'substring']
 
 
 class CollectionOperator(object):
@@ -31,9 +25,9 @@ class CollectionOperator(object):
             return ob
         else:
             try:
-                return asShape(ob)
-            except ValueError:
-                return asLineString(ob)
+                return shape(ob)
+            except (ValueError, AttributeError):
+                return LineString(ob)
 
     def polygonize(self, lines):
         """Creates polygons from a source of lines
@@ -111,9 +105,9 @@ class CollectionOperator(object):
             source = lines
         elif hasattr(lines, '__iter__'):
             try:
-                source = asMultiLineString([ls.coords for ls in lines])
+                source = MultiLineString([ls.coords for ls in lines])
             except AttributeError:
-                source = asMultiLineString(lines)
+                source = MultiLineString(lines)
         if source is None:
             raise ValueError("Cannot linemerge %s" % lines)
         result = lgeos.GEOSLineMerge(source._geom)
@@ -179,6 +173,64 @@ def triangulate(geom, tolerance=0.0, edges=False):
     gc = geom_factory(func(geom._geom, tolerance, int(edges)))
     return [g for g in gc.geoms]
 
+
+def voronoi_diagram(geom, envelope=None, tolerance=0.0, edges=False):
+    """
+    Constructs a Voronoi Diagram [1] from the given geometry.
+    Returns a list of geometries.
+
+    Parameters
+    ----------
+    geom: geometry
+        the input geometry whose vertices will be used to calculate
+        the final diagram.
+    envelope: geometry, None
+        clipping envelope for the returned diagram, automatically
+        determined if None. The diagram will be clipped to the larger
+        of this envelope or an envelope surrounding the sites.
+    tolerance: float, 0.0
+        sets the snapping tolerance used to improve the robustness
+        of the computation. A tolerance of 0.0 specifies that no
+        snapping will take place.
+    edges: bool, False
+        If False, return regions as polygons. Else, return only
+        edges e.g. LineStrings.
+
+    GEOS documentation can be found at [2]
+
+    Returns
+    -------
+    GeometryCollection
+        geometries representing the Voronoi regions.
+
+    Notes
+    -----
+    The tolerance `argument` can be finicky and is known to cause the
+    algorithm to fail in several cases. If you're using `tolerance`
+    and getting a failure, try removing it. The test cases in
+    tests/test_voronoi_diagram.py show more details.
+
+
+    References
+    ----------
+    [1] https://en.wikipedia.org/wiki/Voronoi_diagram
+    [2] https://geos.osgeo.org/doxygen/geos__c_8h_source.html  (line 730)
+    """
+    func = lgeos.methods['voronoi_diagram']
+    envelope = envelope._geom if envelope else None
+    try:
+        result = geom_factory(func(geom._geom, envelope, tolerance, int(edges)))
+    except ValueError:
+        errstr = "Could not create Voronoi Diagram with the specified inputs."
+        if tolerance:
+            errstr += " Try running again with default tolerance value."
+        raise ValueError(errstr)
+
+    if result.type != 'GeometryCollection':
+        return GeometryCollection([result])
+    return result
+
+
 class ValidateOp(object):
     def __call__(self, this):
         return lgeos.GEOSisValidReason(this._geom)
@@ -203,18 +255,19 @@ def transform(func, geom):
 
       g2 = transform(id_func, g1)
 
-    A partially applied transform function from pyproj satisfies the
-    requirements for `func`.
+    Using pyproj >= 2.1, this example will accurately project Shapely geometries:
 
-      from functools import partial
       import pyproj
 
-      project = partial(
-          pyproj.transform,
-          pyproj.Proj(init='epsg:4326'),
-          pyproj.Proj(init='epsg:26913'))
+      wgs84 = pyproj.CRS('EPSG:4326')
+      utm = pyproj.CRS('EPSG:32618')
+
+      project = pyproj.Transformer.from_crs(wgs84, utm, always_xy=True).transform
 
       g2 = transform(project, g1)
+
+    Note that the always_xy kwarg is required here as Shapely geometries only support
+    X,Y coordinate ordering.
 
     Lambda expressions such as the one in
 
@@ -232,11 +285,11 @@ def transform(func, geom):
         # extra cost.
         try:
             if geom.type in ('Point', 'LineString', 'LinearRing'):
-                return type(geom)(zip(*func(*izip(*geom.coords))))
+                return type(geom)(zip(*func(*zip(*geom.coords))))
             elif geom.type == 'Polygon':
                 shell = type(geom.exterior)(
-                    zip(*func(*izip(*geom.exterior.coords))))
-                holes = list(type(ring)(zip(*func(*izip(*ring.coords))))
+                    zip(*func(*zip(*geom.exterior.coords))))
+                holes = list(type(ring)(zip(*func(*zip(*ring.coords))))
                              for ring in geom.interiors)
                 return type(geom)(shell, holes)
 
